@@ -517,6 +517,88 @@ function SearchFilters() {
 }
 ```
 
+## 🚀 Migration Guide
+
+### From Manual URL Management
+
+```tsx
+// Before: Manual URL state
+const [search, setSearch] = useState('');
+
+useEffect(() => {
+  const params = new URLSearchParams(window.location.search);
+  setSearch(params.get('q') || '');
+}, []);
+
+useEffect(() => {
+  const params = new URLSearchParams(window.location.search);
+  if (search) {
+    params.set('q', search);
+  } else {
+    params.delete('q');
+  }
+  window.history.replaceState({}, '', `?${params}`);
+}, [search]);
+
+// After: useShareableState
+const [search, setSearch] = useShareableState('q').string('');
+```
+
+### From React Router useSearchParams
+
+```tsx
+// Before: React Router
+import { useSearchParams } from 'react-router-dom';
+
+function SearchPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const query = searchParams.get('q') || '';
+
+  const setQuery = (value: string) => {
+    const newParams = new URLSearchParams(searchParams);
+    if (value) {
+      newParams.set('q', value);
+    } else {
+      newParams.delete('q');
+    }
+    setSearchParams(newParams);
+  };
+}
+
+// After: useShareableState
+function SearchPage() {
+  const [query, setQuery] = useShareableState('q').string('');
+}
+```
+
+### From Next.js useRouter
+
+```tsx
+// Before: Next.js useRouter
+import { useRouter } from 'next/router';
+
+function SearchPage() {
+  const router = useRouter();
+  const { q = '' } = router.query;
+
+  const setQuery = (value: string) => {
+    router.push(
+      {
+        pathname: router.pathname,
+        query: { ...router.query, q: value || undefined },
+      },
+      undefined,
+      { shallow: true },
+    );
+  };
+}
+
+// After: useShareableState
+function SearchPage() {
+  const [query, setQuery] = useShareableState('q').string('');
+}
+```
+
 ## 🤝 Contributing
 
 We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) and [Code of Conduct](CODE_OF_CONDUCT.md).
