@@ -93,9 +93,8 @@
     "release": "pnpm changeset",
     "version-packages": "changeset version",
     "publish-packages": "changeset publish",
-    "docs:clean": "rm -rf docs/api && mkdir -p docs/api",
-    "docs:build": "pnpm docs:clean && typedoc --plugin typedoc-plugin-markdown --out docs/api src/index.ts && pnpm docs:setup-pages",
-    "docs:setup-pages": "cp README.md docs/index.md && sed -i 's|media/useShareableState.png|../media/useShareableState.png|g' docs/index.md && sed -i 's|(docs/api)|(api)|g' docs/index.md && cp docs/_config.yml docs/api/_config.yml",
+    "docs:clean": "rm -rf docs/api",
+    "docs:build": "pnpm docs:clean && typedoc --plugin typedoc-plugin-markdown --out docs/api src/index.ts",
     "docs:open": "xdg-open docs/api/README.md || open docs/api/README.md || true"
   },
   "lint-staged": {
