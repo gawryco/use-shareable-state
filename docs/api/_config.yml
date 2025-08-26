@@ -1,0 +1,16 @@
+name: use-shareable-state
+title: use-shareable-state
+description: The tiny, typed React hook for URL query string state
+
+markdown: kramdown
+highlighter: rouge
+theme: minima
+
+plugins:
+  - jekyll-feed
+  - jekyll-sitemap
+
+exclude:
+  - node_modules
+  - package.json
+  - pnpm-lock.yaml
