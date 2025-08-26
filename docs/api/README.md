@@ -1,8 +1,8 @@
-**use-shareable-state**
+**@gawryco/use-shareable-state**
 
 ---
 
-# use-shareable-state
+# @gawryco/use-shareable-state
 
 ## Functions
 

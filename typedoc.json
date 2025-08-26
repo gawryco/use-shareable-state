@@ -7,5 +7,10 @@
   "readme": "none",
   "excludePrivate": true,
   "excludeProtected": true,
-  "hideGenerator": true
+  "excludeInternal": true,
+  "hideGenerator": true,
+  "validation": {
+    "notExported": false,
+    "invalidLink": false
+  }
 }
