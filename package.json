@@ -1,5 +1,5 @@
 {
-  "name": "use-shareable-state",
+  "name": "@gawryco/use-shareable-state",
   "version": "0.0.1",
   "description": "The tiny, typed React hook for URL query string state. Transform your components into shareable, bookmarkable experiences with zero boilerplate.",
   "type": "module",
@@ -43,6 +43,9 @@
     "node": ">=18"
   },
   "packageManager": "pnpm@10.7.0",
+  "publishConfig": {
+    "access": "public"
+  },
   "peerDependencies": {
     "react": ">=17.0.0"
   },
