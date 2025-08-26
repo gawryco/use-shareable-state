@@ -56,9 +56,12 @@ describe('useShareableState', () => {
       btn.click();
     });
     expect(new URL(window.location.href).searchParams.get('n')).toBe('2');
-    // jsdom doesn't increment history.length, but we can detect a new entry via pushState by navigating back
-    window.history.back();
-    await act(async () => {});
+    // jsdom doesn't maintain a reliable back stack; emulate back by restoring prior URL and emitting popstate
+    const prevUrl = new URL('http://localhost/?n=1');
+    window.history.replaceState(null, '', prevUrl.toString());
+    await act(async () => {
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    });
     expect(new URL(window.location.href).searchParams.get('n')).toBe('1');
   });
 
