@@ -7,8 +7,8 @@
   
   Transform your components into shareable, bookmarkable experiences with zero boilerplate.
   
-  [![npm version](https://img.shields.io/npm/v/use-shareable-state.svg)](https://www.npmjs.com/package/use-shareable-state)
-  [![Bundle size](https://img.shields.io/bundlephobia/minzip/use-shareable-state.svg)](https://bundlephobia.com/package/use-shareable-state)
+  [![npm version](https://img.shields.io/npm/v/@gawryco/use-shareable-state.svg)](https://www.npmjs.com/package/@gawryco/use-shareable-state)
+  [![Bundle size](https://img.shields.io/bundlephobia/minzip/@gawryco/use-shareable-state.svg)](https://bundlephobia.com/package/@gawryco/use-shareable-state)
   [![TypeScript](https://img.shields.io/badge/%3C%2F%3E-TypeScript-%230074c1.svg)](http://www.typescriptlang.org/)
   [![CI](https://github.com/gawryco/use-shareable-state/actions/workflows/ci.yml/badge.svg)](https://github.com/gawryco/use-shareable-state/actions/workflows/ci.yml)
   [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
@@ -113,13 +113,13 @@ Pure URL manipulation. Works with any React app, any router, any bundler.
 
 ```bash
 # npm
-npm install use-shareable-state
+npm install @gawryco/use-shareable-state
 
 # pnpm
-pnpm add use-shareable-state
+pnpm add @gawryco/use-shareable-state
 
 # yarn
-yarn add use-shareable-state
+yarn add @gawryco/use-shareable-state
 ```
 
 **Requirements:** React ≥ 17.0.0
@@ -127,7 +127,7 @@ yarn add use-shareable-state
 ## 🚀 Quick Start
 
 ```tsx
-import { useShareableState } from 'use-shareable-state';
+import { useShareableState } from '@gawryco/use-shareable-state';
 
 function SearchPage() {
   // Typed string state synced with ?q=...
