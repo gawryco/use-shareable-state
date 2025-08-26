@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="../media/useShareableState.png" alt="useShareableState" width="600" />
+  <img src="media/useShareableState.png" alt="useShareableState" width="600" />
   
   # use-shareable-state
   
@@ -13,7 +13,7 @@
   [![CI](https://github.com/gawryco/use-shareable-state/actions/workflows/ci.yml/badge.svg)](https://github.com/gawryco/use-shareable-state/actions/workflows/ci.yml)
   [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
   
-  [**Examples →**](#-examples) | [**API Docs →**](https://gawryco.github.io/use-shareable-state/api)
+  [**Examples →**](#-examples) | [**API Docs →**](docs/api)
 </div>
 
 ---
@@ -639,5 +639,5 @@ MIT © [Gawry & Co](https://github.com/gawryco)
   <strong>⭐ Star us on GitHub — it motivates us a lot!</strong>
   <br><br>
   
-  [**Documentation**](api) · [**Examples**](https://stackblitz.com/edit/use-shareable-state-demo) · [**Issues**](https://github.com/gawryco/use-shareable-state/issues) · [**Discussions**](https://github.com/gawryco/use-shareable-state/discussions)
+  [**Documentation**](docs/api) · [**Examples**](https://stackblitz.com/edit/use-shareable-state-demo) · [**Issues**](https://github.com/gawryco/use-shareable-state/issues) · [**Discussions**](https://github.com/gawryco/use-shareable-state/discussions)
 </div>
