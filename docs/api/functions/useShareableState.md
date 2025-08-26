@@ -1,14 +1,14 @@
-[**use-shareable-state**](../README.md)
+[**@gawryco/use-shareable-state**](../README.md)
 
 ---
 
-[use-shareable-state](../README.md) / useShareableState
+[@gawryco/use-shareable-state](../README.md) / useShareableState
 
 # Function: useShareableState()
 
 > **useShareableState**(`key`): `object`
 
-Defined in: [useShareableState.ts:256](https://github.com/gawryco/use-shareable-state/blob/52e49c12bc580aad84f842ab01edcb7dd1829529/src/useShareableState.ts#L256)
+Defined in: [useShareableState.ts:283](https://github.com/gawryco/use-shareable-state/blob/02c840459e0453e23885348e21ffdad11f984939/src/useShareableState.ts#L283)
 
 Public API: returns builder methods for creating typed query‑state pairs.
 
@@ -34,7 +34,7 @@ Available builders:
 
 ### boolean()
 
-> `readonly` **boolean**(`defaultValue`): \[`boolean`, `Updater`\<`boolean`\>\]
+> `readonly` **boolean**(`defaultValue`, `opts?`): \[`null` \| `boolean`, `Updater`\<`null` \| `boolean`\>\]
 
 Binds a boolean state to a query param, using '1' and '0' representations.
 Accepts common truthy/falsy string variants when parsing.
@@ -43,13 +43,23 @@ Accepts common truthy/falsy string variants when parsing.
 
 ##### defaultValue
 
-`boolean`
-
 Initial boolean when the param is missing
+
+`null` | `boolean`
+
+##### opts?
+
+Optional history action
+
+###### action?
+
+`HistoryAction`
+
+History action to use when updating the URL (push or replace)
 
 #### Returns
 
-\[`boolean`, `Updater`\<`boolean`\>\]
+\[`null` \| `boolean`, `Updater`\<`null` \| `boolean`\>\]
 
 A tuple `[value, setValue]`
 
@@ -61,7 +71,7 @@ const [open, setOpen] = useShareableState('open').boolean(false);
 
 ### custom()
 
-> `readonly` **custom**\<`T`\>(`defaultValue`, `parse`, `format`): \[`T`, `Updater`\<`T`\>\]
+> `readonly` **custom**\<`T`\>(`defaultValue`, `parse`, `format`, `opts?`): \[`null` \| `T`, `Updater`\<`null` \| `T`\>\]
 
 Fully custom binding. Provide your own parse/format functions.
 Return null from parse to indicate an invalid/unsupported value and fall back to default.
@@ -76,9 +86,9 @@ Return null from parse to indicate an invalid/unsupported value and fall back to
 
 ##### defaultValue
 
-`T`
-
 Fallback when the URL value cannot be parsed
+
+`null` | `T`
 
 ##### parse
 
@@ -92,9 +102,19 @@ Function parsing the raw string into T (return `null` on failure)
 
 Function formatting T into a string (return empty string to delete param)
 
+##### opts?
+
+Optional history action
+
+###### action?
+
+`HistoryAction`
+
+History action to use when updating the URL (push or replace)
+
 #### Returns
 
-\[`T`, `Updater`\<`T`\>\]
+\[`null` \| `T`, `Updater`\<`null` \| `T`\>\]
 
 A tuple `[value, setValue]`
 
@@ -110,7 +130,7 @@ const [ids, setIds] = useShareableState('ids').custom<number[]>(
 
 ### date()
 
-> `readonly` **date**(`defaultValue`, `opts?`): \[`Date`, `Updater`\<`Date`\>\]
+> `readonly` **date**(`defaultValue`, `opts?`): \[`null` \| `Date`, `Updater`\<`null` \| `Date`\>\]
 
 Binds a Date state to a query param, persisted as 'yyyy-MM-dd'.
 
@@ -118,25 +138,35 @@ Binds a Date state to a query param, persisted as 'yyyy-MM-dd'.
 
 ##### defaultValue
 
-`Date`
-
 Initial date when the param is missing/invalid
+
+`null` | `Date`
 
 ##### opts?
 
-Optional min/max clamping
+Optional min/max clamping and history action
+
+###### action?
+
+`HistoryAction`
+
+History action to use when updating the URL (push or replace)
 
 ###### max?
 
 `Date`
 
+Maximum allowed date (dates after are clamped)
+
 ###### min?
 
 `Date`
 
+Minimum allowed date (dates before are clamped)
+
 #### Returns
 
-\[`Date`, `Updater`\<`Date`\>\]
+\[`null` \| `Date`, `Updater`\<`null` \| `Date`\>\]
 
 A tuple `[value, setValue]`
 
@@ -148,7 +178,7 @@ const [start, setStart] = useShareableState('start').date(new Date());
 
 ### enum()
 
-> `readonly` **enum**\<`U`\>(`allowed`, `defaultValue`): \[`U`, `Updater`\<`U`\>\]
+> `readonly` **enum**\<`U`\>(`allowed`, `defaultValue`, `opts?`): \[`null` \| `U`, `Updater`\<`null` \| `U`\>\]
 
 Binds a string literal union (enum-like) to a query param.
 If the URL value is not within the allowed list, the default is used.
@@ -171,13 +201,23 @@ Array of allowed string values
 
 ##### defaultValue
 
-`U`
-
 Fallback used when the URL value is not allowed
+
+`null` | `U`
+
+##### opts?
+
+Optional history action
+
+###### action?
+
+`HistoryAction`
+
+History action to use when updating the URL (push or replace)
 
 #### Returns
 
-\[`U`, `Updater`\<`U`\>\]
+\[`null` \| `U`, `Updater`\<`null` \| `U`\>\]
 
 A tuple `[value, setValue]`
 
@@ -190,7 +230,7 @@ const [theme, setTheme] = useShareableState('t').enum<Theme>(['light', 'dark'], 
 
 ### json()
 
-> `readonly` **json**\<`T`\>(`defaultValue`, `opts?`): \[`T`, `Updater`\<`T`\>\]
+> `readonly` **json**\<`T`\>(`defaultValue`, `opts?`): \[`null` \| `T`, `Updater`\<`null` \| `T`\>\]
 
 Binds a JSON-serializable value (object/array) to a query param.
 You can optionally provide a validator to ensure shape and an omitEmpty function
@@ -206,13 +246,19 @@ to clear the param when the value is considered empty.
 
 ##### defaultValue
 
-`T`
-
 Initial value when the param is missing
+
+`null` | `T`
 
 ##### opts?
 
 Optional configuration
+
+###### action?
+
+`HistoryAction`
+
+History action to use when updating the URL (push or replace)
 
 ###### omitEmpty?
 
@@ -240,7 +286,7 @@ Type guard to validate parsed JSON (return false to fall back)
 
 #### Returns
 
-\[`T`, `Updater`\<`T`\>\]
+\[`null` \| `T`, `Updater`\<`null` \| `T`\>\]
 
 A tuple `[value, setValue]`
 
@@ -252,7 +298,7 @@ const [filters, setFilters] = useShareableState('f').json<{ q: string }>({ q: ''
 
 ### number()
 
-> `readonly` **number**(`defaultValue`, `opts?`): \[`number`, `Updater`\<`number`\>\]
+> `readonly` **number**(`defaultValue`, `opts?`): \[`null` \| `number`, `Updater`\<`null` \| `number`\>\]
 
 Binds a number state to a query param. Invalid/NaN values fall back to default.
 
@@ -263,13 +309,19 @@ constrain and normalize the value using `min`, `max` and `step`.
 
 ##### defaultValue
 
-`number`
-
 Initial value when the param is missing/invalid
+
+`null` | `number`
 
 ##### opts?
 
 Optional constraints
+
+###### action?
+
+`HistoryAction`
+
+History action to use when updating the URL (push or replace)
 
 ###### max?
 
@@ -291,7 +343,7 @@ Rounds to the nearest multiple of this step (must be > 0)
 
 #### Returns
 
-\[`number`, `Updater`\<`number`\>\]
+\[`null` \| `number`, `Updater`\<`null` \| `number`\>\]
 
 A tuple `[value, setValue]`
 
@@ -303,7 +355,7 @@ const [n, setN] = useShareableState('n').number(0, { min: 0, step: 1 });
 
 ### string()
 
-> `readonly` **string**(`defaultValue`, `opts?`): \[`string`, `Updater`\<`string`\>\]
+> `readonly` **string**(`defaultValue`, `opts?`): \[`null` \| `string`, `Updater`\<`null` \| `string`\>\]
 
 Binds a string state to a query param. No transformation is applied.
 
@@ -314,25 +366,35 @@ removes the query param from the URL.
 
 ##### defaultValue
 
-`string`
-
 Initial value when the param is missing
+
+`null` | `string`
 
 ##### opts?
 
-Optional length constraints
+Optional length constraints and history action
+
+###### action?
+
+`HistoryAction`
+
+History action to use when updating the URL (push or replace)
 
 ###### maxLength?
 
 `number`
 
+Maximum allowed length (strings longer are truncated)
+
 ###### minLength?
 
 `number`
 
+Minimum allowed length (strings shorter are padded)
+
 #### Returns
 
-\[`string`, `Updater`\<`string`\>\]
+\[`null` \| `string`, `Updater`\<`null` \| `string`\>\]
 
 A tuple `[value, setValue]`
 
