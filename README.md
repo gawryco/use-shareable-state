@@ -50,10 +50,11 @@ useEffect(() => {
 Into this 🚀:
 
 ```tsx
-// Automatic URL state management
+// Automatic URL state management with type safety
 const [search, setSearch] = useShareableState('search').string('');
 const [category, setCategory] = useShareableState('category').string('all');
 const [page, setPage] = useShareableState('page').number(1);
+// All values are non-nullable by default, perfect type inference!
 ```
 
 ## 🎯 Features
@@ -64,7 +65,7 @@ const [page, setPage] = useShareableState('page').number(1);
 
 ### 🏗️ **Type-Safe Builders**
 
-Built-in support for `number`, `string`, `boolean`, `date`, `enum`, `json`, and `custom` types with full TypeScript inference.
+Built-in support for `number`, `string`, `boolean`, `date`, `enum`, `json`, and `custom` types. Non-nullable by default, explicit `.optional()` for nullable fields.
 
 </td>
 <td>
@@ -157,10 +158,9 @@ function SearchPage() {
 ```tsx
 function ProductSearch() {
   const [search, setSearch] = useShareableState('q').string('');
-  const [category, setCategory] = useShareableState('cat').enum(
-    ['electronics', 'clothing', 'books'] as const,
-    'electronics',
-  );
+  const [category, setCategory] = useShareableState('cat').enum<
+    'electronics' | 'clothing' | 'books'
+  >(['electronics', 'clothing', 'books'], 'electronics');
   const [minPrice, setMinPrice] = useShareableState('min').number(0, { min: 0 });
   const [inStock, setInStock] = useShareableState('stock').boolean(false);
 
@@ -172,7 +172,7 @@ function ProductSearch() {
         placeholder="Search products..."
       />
 
-      <select value={category} onChange={(e) => setCategory(e.target.value)}>
+      <select value={category} onChange={(e) => setCategory(e.target.value as any)}>
         <option value="electronics">Electronics</option>
         <option value="clothing">Clothing</option>
         <option value="books">Books</option>
@@ -196,17 +196,16 @@ function ProductSearch() {
 }
 ```
 
-### 🔘 Optional Params (Null Defaults)
+### 🔘 Optional Params (Nullable with .optional())
 
 ```tsx
 function OptionalParams() {
-  // Params are omitted from the URL until they are explicitly set
-  const [search, setSearch] = useShareableState('q').string(null);
-  const [category, setCategory] = useShareableState('cat').enum(
-    ['electronics', 'clothing', 'books'] as const,
-    null,
-  );
-  const [minPrice, setMinPrice] = useShareableState('min').number(null, { min: 0 });
+  // Use .optional() for nullable params - Zod-like pattern!
+  const [search, setSearch] = useShareableState('q').string().optional();
+  const [category, setCategory] = useShareableState('cat')
+    .enum<'electronics' | 'clothing' | 'books'>()
+    .optional(['electronics', 'clothing', 'books']);
+  const [minPrice, setMinPrice] = useShareableState('min').number().optional(undefined, { min: 0 });
 
   // URL examples:
   // - Initially:    (no params)
@@ -215,9 +214,13 @@ function OptionalParams() {
 
   return (
     <div>
-      <input value={search ?? ''} onChange={(e) => setSearch(e.target.value)} />
-      <select value={category ?? ''} onChange={(e) => setCategory(e.target.value as any)}>
-        <option value="">All</option>
+      <input
+        value={search ?? ''}
+        onChange={(e) => setSearch(e.target.value || null)}
+        placeholder="Search..."
+      />
+      <select value={category ?? ''} onChange={(e) => setCategory((e.target.value as any) || null)}>
+        <option value="">All Categories</option>
         <option value="electronics">Electronics</option>
         <option value="clothing">Clothing</option>
         <option value="books">Books</option>
@@ -226,6 +229,7 @@ function OptionalParams() {
         type="number"
         value={minPrice ?? ''}
         onChange={(e) => setMinPrice(e.target.value ? Number(e.target.value) : null)}
+        placeholder="Min price"
       />
     </div>
   );
@@ -245,7 +249,7 @@ function SearchWithHistory() {
   return (
     <div>
       <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search..." />
-      <button onClick={() => setPage((p) => (p ?? 1) + 1)}>Next page</button>
+      <button onClick={() => setPage((p) => p + 1)}>Next page</button>
     </div>
   );
 }
@@ -362,44 +366,85 @@ function TagFilter() {
 
 ### 🏗️ Type Builders
 
-#### `number(defaultValue, options?)`
+**Pattern:** Non-nullable by default, explicit `.optional()` for nullable fields.
+
+#### `number(defaultValue, options?)` - Non-nullable
 
 ```tsx
 const [count, setCount] = useShareableState('count').number(0, {
   min: 0, // Clamp to minimum value
   max: 100, // Clamp to maximum value
   step: 5, // Round to nearest step
+  action: 'replace', // 'replace' | 'push'
 });
+// count: number (never null)
 ```
 
-#### `string(defaultValue, options?)`
+#### `number().optional(defaultValue?, options?)` - Nullable
+
+```tsx
+const [count, setCount] = useShareableState('count').number().optional(null, {
+  min: 0,
+  max: 100,
+  step: 5,
+});
+// count: number | null
+```
+
+#### `string(defaultValue, options?)` - Non-nullable
 
 ```tsx
 const [name, setName] = useShareableState('name').string('', {
   maxLength: 50, // Truncate if too long
   minLength: 2, // Pad with spaces if too short
+  action: 'replace',
 });
+// name: string (never null)
 ```
 
-#### `boolean(defaultValue)`
+#### `string().optional(defaultValue?, options?)` - Nullable
+
+```tsx
+const [name, setName] = useShareableState('name').string().optional();
+// name: string | null
+```
+
+#### `boolean(defaultValue)` - Non-nullable
 
 ```tsx
 const [enabled, setEnabled] = useShareableState('enabled').boolean(false);
+// enabled: boolean (never null)
 // Accepts: '1', 'true', 't', 'yes', 'y' (truthy)
 //         '0', 'false', 'f', 'no', 'n' (falsy)
 ```
 
-#### `date(defaultValue, options?)`
+#### `boolean().optional(defaultValue?)` - Nullable
+
+```tsx
+const [enabled, setEnabled] = useShareableState('enabled').boolean().optional();
+// enabled: boolean | null
+```
+
+#### `date(defaultValue, options?)` - Non-nullable
 
 ```tsx
 const [birthday, setBirthday] = useShareableState('birthday').date(new Date('1990-01-01'), {
   min: new Date('1900-01-01'),
   max: new Date(),
+  action: 'replace',
 });
+// birthday: Date (never null)
 // Format: YYYY-MM-DD (UTC)
 ```
 
-#### `enum<T>(allowedValues, defaultValue)`
+#### `date().optional(defaultValue?, options?)` - Nullable
+
+```tsx
+const [birthday, setBirthday] = useShareableState('birthday').date().optional();
+// birthday: Date | null
+```
+
+#### `enum<T>(allowedValues, defaultValue)` - Non-nullable
 
 ```tsx
 type Theme = 'light' | 'dark' | 'auto';
@@ -407,23 +452,42 @@ const [theme, setTheme] = useShareableState('theme').enum<Theme>(
   ['light', 'dark', 'auto'],
   'light',
 );
+// theme: Theme (never null)
 ```
 
-#### `json<T>(defaultValue, options?)`
+#### `enum<T>().optional(allowedValues, defaultValue?)` - Nullable
 
 ```tsx
-const [settings, setSettings] = useShareableState('settings').json(
+const [theme, setTheme] = useShareableState('theme')
+  .enum<Theme>()
+  .optional(['light', 'dark', 'auto']);
+// theme: Theme | null
+```
+
+#### `json<T>(defaultValue, options?)` - Non-nullable
+
+```tsx
+const [settings, setSettings] = useShareableState('settings').json<Settings>(
   { theme: 'light', lang: 'en' },
   {
     validate: (obj): obj is Settings => typeof obj === 'object' && 'theme' in obj,
     omitEmpty: (obj) => Object.keys(obj).length === 0,
     stringify: (obj) => JSON.stringify(obj, null, 0),
     parse: (str) => JSON.parse(str),
+    action: 'replace',
   },
 );
+// settings: Settings (never null)
 ```
 
-#### `custom<T>(defaultValue, parse, format)`
+#### `json<T>().optional(defaultValue?, options?)` - Nullable
+
+```tsx
+const [settings, setSettings] = useShareableState('settings').json<Settings>().optional();
+// settings: Settings | null
+```
+
+#### `custom<T>(defaultValue, parse, format)` - Non-nullable
 
 ```tsx
 const [coords, setCoords] = useShareableState('pos').custom<[number, number]>(
@@ -434,6 +498,23 @@ const [coords, setCoords] = useShareableState('pos').custom<[number, number]>(
   },
   ([x, y]) => `${x},${y}`,
 );
+// coords: [number, number] (never null)
+```
+
+#### `custom<T>().optional(defaultValue, parse, format)` - Nullable
+
+```tsx
+const [coords, setCoords] = useShareableState('pos')
+  .custom<[number, number]>()
+  .optional(
+    null,
+    (str) => {
+      const [x, y] = str.split(',').map(Number);
+      return [x || 0, y || 0];
+    },
+    (value) => (value === null ? '' : `${value[0]},${value[1]}`),
+  );
+// coords: [number, number] | null
 ```
 
 ## 🌐 SSR & Frameworks
@@ -469,7 +550,7 @@ export default function SearchRoute() {
 function useProductFilters() {
   return {
     search: useShareableState('q').string(''),
-    category: useShareableState('cat').enum(['all', 'new', 'sale'], 'all'),
+    category: useShareableState('cat').enum<'all' | 'new' | 'sale'>(['all', 'new', 'sale'], 'all'),
     priceRange: useShareableState('price').custom<[number, number]>(
       [0, 1000],
       (str) => str.split('-').map(Number) as [number, number],

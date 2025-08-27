@@ -21,7 +21,7 @@ describe('useShareableState/enum', () => {
 
     type Theme = 'light' | 'dark';
     function Demo() {
-      const [t] = useShareableState('t').enum<Theme>(['light', 'dark'], 'light');
+      const [t] = useShareableState('t').enum<Theme>()(['light', 'dark'], 'light');
       return <div id="v">{t}</div>;
     }
 
