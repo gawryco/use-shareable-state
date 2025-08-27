@@ -10,31 +10,62 @@
  * - Handle browser navigation (back/forward) by updating state accordingly
  * - Provide typed helpers (number, string, boolean, date, enum, custom, json)
  *
- * Examples:
+ * Examples (Zod-like builder pattern):
  *
- * 1) Number
+ * 1) Non-nullable Number (required default)
  *   const [amount, setAmount] = useShareableState('amount').number(1000);
  *   setAmount(1500); // updates state AND ?amount=1500
+ *   // amount is typed as: number (never null)
  *
- * 2) Date (ISO yyyy-MM-dd in URL)
+ * 2) Nullable Number (optional)
+ *   const [amount, setAmount] = useShareableState('amount').number().optional();
+ *   setAmount(1500); // updates state AND ?amount=1500
+ *   // amount is typed as: number | null
+ *
+ * 3) Non-nullable Date (ISO yyyy-MM-dd in URL)
  *   const [start, setStart] = useShareableState('start').date(new Date('2020-01-01'));
  *   setStart(new Date('2021-06-15')); // updates state AND ?start=2021-06-15
+ *   // start is typed as: Date (never null)
  *
- * 3) Enum
+ * 4) Nullable Date (optional)
+ *   const [end, setEnd] = useShareableState('end').date().optional();
+ *   // end is typed as: Date | null
+ *
+ * 5) Non-nullable Enum
  *   type Index = 'us_cpi' | 'uk_rpi' | 'euro_hicp' | 'can_cpi' | 'aus_cpi';
  *   const [index, setIndex] = useShareableState('index').enum<Index>(
  *     ['us_cpi', 'uk_rpi', 'euro_hicp', 'can_cpi', 'aus_cpi'],
  *     'us_cpi'
  *   );
+ *   // index is typed as: Index (never null)
  *
- * 4) Custom parser/formatter
+ * 6) Nullable Enum (optional)
+ *   const [optIndex, setOptIndex] = useShareableState('opt').enum<Index>().optional(
+ *     ['us_cpi', 'uk_rpi', 'euro_hicp', 'can_cpi', 'aus_cpi']
+ *   );
+ *   // optIndex is typed as: Index | null
+ *
+ * 7) Non-nullable Custom parser/formatter
  *   const [arr, setArr] = useShareableState('list').custom<number[]>([1,2,3],
  *     raw => { try { const v = JSON.parse(raw); return Array.isArray(v) ? v : null; } catch { return null; } },
  *     v => JSON.stringify(v)
  *   );
+ *   // arr is typed as: number[] (never null)
  *
- * 5) JSON
+ * 8) Nullable Custom (optional)
+ *   const [optArr, setOptArr] = useShareableState('opt-list').custom<number[]>().optional(null,
+ *     raw => { try { const v = JSON.parse(raw); return Array.isArray(v) ? v : null; } catch { return null; } },
+ *     v => v === null ? '' : JSON.stringify(v)
+ *   );
+ *   // optArr is typed as: number[] | null
+ *
+ * 9) Non-nullable JSON
  *   const [filters, setFilters] = useShareableState('f').json<{ q: string }>({ q: '' });
+ *   // filters is typed as: { q: string } (never null)
+ *
+ * 10) Nullable JSON (optional)
+ *   const [optFilters, setOptFilters] = useShareableState('opt-f').json<{ q: string }>().optional();
+ *   // optFilters is typed as: { q: string } | null
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
@@ -125,7 +156,7 @@ function applyUrl(params: URLSearchParams, action: HistoryAction = 'replace'): v
 }
 
 /**
- * Internal generic hook that wires a single query key to React state.
+ * Internal generic hook that wires a single query key to React state (nullable version).
  *
  * Behavior:
  * - On mount, initialize from the URL (or seed with default if missing)
@@ -134,7 +165,7 @@ function applyUrl(params: URLSearchParams, action: HistoryAction = 'replace'): v
  *
  * @template T Value type
  * @param key Query string key (e.g., "amount")
- * @param defaultValue Default state used when the key is missing/invalid in the URL
+ * @param defaultValue Default state used when the key is missing/invalid in the URL (can be null)
  * @param parse Function to parse the raw string into T. Return `null` to fall back to the default.
  * @param format Function to format T back into a query‑string friendly string. Return an empty string to delete the param.
  * @param normalize Optional post-parse normalization applied to every value before being stored
@@ -267,51 +298,353 @@ function useQueryParam<T>(
 }
 
 /**
+ * Internal generic hook that wires a single query key to React state (non-nullable version).
+ *
+ * Behavior:
+ * - On mount, initialize from the URL (or seed with default if missing)
+ * - On updates via the setter, update both state and the URL param
+ * - On browser navigation (popstate), re-parse the URL and update state
+ * - Never returns null - always uses the default value when parsing fails
+ *
+ * @template T Value type
+ * @param key Query string key (e.g., "amount")
+ * @param defaultValue Default state used when the key is missing/invalid in the URL (cannot be null)
+ * @param parse Function to parse the raw string into T. Return `null` to fall back to the default.
+ * @param format Function to format T back into a query‑string friendly string.
+ * @param normalize Optional post-parse normalization applied to every value before being stored
+ * @returns A tuple `[state, setState]` with a React‑style setter that also syncs the URL
+ */
+function useQueryParamNonNull<T>(
+  key: string,
+  defaultValue: T,
+  parse: (raw: string) => T | null,
+  format: (value: T) => string,
+  normalize?: (value: T) => T,
+  opts?: { action?: HistoryAction },
+): [T, Updater<T>] {
+  const initial = useMemo(() => defaultValue, []);
+  const [state, setState] = useState<T>(initial);
+  const keyRef = useRef(key);
+  keyRef.current = key;
+  const actionRef = useRef<HistoryAction>(opts?.action ?? 'replace');
+  actionRef.current = opts?.action ?? actionRef.current;
+
+  // keep a ref to the latest state for popstate comparisons
+  const stateRef = useRef(state);
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
+
+  // Initialize from URL, and ensure default in URL if absent
+  useEffect(() => {
+    if (!isBrowser()) return;
+    const params = safeGetSearchParams();
+    if (!params) return;
+    const raw = params.get(keyRef.current);
+    if (raw === null) {
+      // seed URL with default
+      const normalized = normalize ? normalize(initial) : initial;
+      const seeded = format(normalized);
+      if (seeded !== '') {
+        params.set(keyRef.current, seeded);
+        applyUrl(params, actionRef.current);
+      }
+      setState(normalized);
+      return;
+    }
+    const parsed = parse(raw);
+    const value = parsed !== null ? parsed : initial;
+    setState(normalize ? normalize(value) : value);
+  }, [initial]);
+
+  // Listen to back/forward navigation to keep state in sync
+  useEffect(() => {
+    if (!isBrowser()) return;
+    const handler = () => {
+      const params = safeGetSearchParams();
+      if (!params) return;
+      const raw = params.get(keyRef.current);
+      if (raw === null) {
+        // If the param is removed from URL, fallback to default
+        const next = normalize ? normalize(initial) : initial;
+        setState(next);
+        dispatchQSChange({
+          key: keyRef.current,
+          prev: stateRef.current,
+          next,
+          params: Object.fromEntries(params.entries()),
+          source: 'popstate',
+          ts: Date.now(),
+        });
+        return;
+      }
+      const parsed = parse(raw);
+      const next = parsed !== null ? (normalize ? normalize(parsed) : parsed) : (normalize ? normalize(initial) : initial);
+      if (next !== stateRef.current) {
+        const prev = stateRef.current;
+        setState(next);
+        dispatchQSChange({
+          key: keyRef.current,
+          prev,
+          next,
+          params: Object.fromEntries(params.entries()),
+          source: 'popstate',
+          ts: Date.now(),
+        });
+      }
+    };
+    window.addEventListener('popstate', handler);
+    return () => window.removeEventListener('popstate', handler);
+  }, [parse, initial]);
+
+  const setBoth: Updater<T> = useCallback(
+    (value) => {
+      setState((prev) => {
+        const rawNext = typeof value === 'function' ? (value as (p: T) => T)(prev) : value;
+        const next = normalize ? normalize(rawNext) : rawNext;
+        const params = safeGetSearchParams();
+        if (params) {
+          const nextStr = format(next);
+          const currentStr = params.get(keyRef.current);
+          if (nextStr === '') {
+            if (currentStr !== null) {
+              params.delete(keyRef.current);
+              applyUrl(params, actionRef.current);
+              dispatchQSChange({
+                key: keyRef.current,
+                prev,
+                next,
+                params: Object.fromEntries(params.entries()),
+                source: 'set',
+                ts: Date.now(),
+              });
+            }
+          } else if (currentStr !== nextStr) {
+            params.set(keyRef.current, nextStr);
+            applyUrl(params, actionRef.current);
+            dispatchQSChange({
+              key: keyRef.current,
+              prev,
+              next,
+              params: Object.fromEntries(params.entries()),
+              source: 'set',
+              ts: Date.now(),
+            });
+          }
+        }
+        return next;
+      });
+    },
+    [format],
+  );
+
+  return [state, setBoth];
+}
+
+// Builder interfaces for each data type
+interface NumberBuilder {
+  /**
+   * Creates a non-nullable number state bound to a query param.
+   * 
+   * @param defaultValue Required default value when the param is missing/invalid
+   * @param opts Optional constraints and history action
+   * @returns A tuple `[value, setValue]` where value is never null
+   */
+  (defaultValue: number, opts?: { min?: number; max?: number; step?: number; action?: HistoryAction }): [number, Updater<number>];
+  
+  /**
+   * Creates a nullable number state bound to a query param.
+   * 
+   * @param defaultValue Optional default value (defaults to null)
+   * @param opts Optional constraints and history action
+   * @returns A tuple `[value, setValue]` where value can be null
+   */
+  optional(defaultValue?: number | null, opts?: { min?: number; max?: number; step?: number; action?: HistoryAction }): [number | null, Updater<number | null>];
+}
+
+interface StringBuilder {
+  /**
+   * Creates a non-nullable string state bound to a query param.
+   * 
+   * @param defaultValue Required default value when the param is missing
+   * @param opts Optional length constraints and history action
+   * @returns A tuple `[value, setValue]` where value is never null
+   */
+  (defaultValue: string, opts?: { minLength?: number; maxLength?: number; action?: HistoryAction }): [string, Updater<string>];
+  
+  /**
+   * Creates a nullable string state bound to a query param.
+   * 
+   * @param defaultValue Optional default value (defaults to null)
+   * @param opts Optional length constraints and history action
+   * @returns A tuple `[value, setValue]` where value can be null
+   */
+  optional(defaultValue?: string | null, opts?: { minLength?: number; maxLength?: number; action?: HistoryAction }): [string | null, Updater<string | null>];
+}
+
+interface BooleanBuilder {
+  /**
+   * Creates a non-nullable boolean state bound to a query param.
+   * 
+   * @param defaultValue Required default value when the param is missing
+   * @param opts Optional history action
+   * @returns A tuple `[value, setValue]` where value is never null
+   */
+  (defaultValue: boolean, opts?: { action?: HistoryAction }): [boolean, Updater<boolean>];
+  
+  /**
+   * Creates a nullable boolean state bound to a query param.
+   * 
+   * @param defaultValue Optional default value (defaults to null)
+   * @param opts Optional history action
+   * @returns A tuple `[value, setValue]` where value can be null
+   */
+  optional(defaultValue?: boolean | null, opts?: { action?: HistoryAction }): [boolean | null, Updater<boolean | null>];
+}
+
+interface DateBuilder {
+  /**
+   * Creates a non-nullable Date state bound to a query param.
+   * 
+   * @param defaultValue Required default value when the param is missing/invalid
+   * @param opts Optional min/max clamping and history action
+   * @returns A tuple `[value, setValue]` where value is never null
+   */
+  (defaultValue: Date, opts?: { min?: Date; max?: Date; action?: HistoryAction }): [Date, Updater<Date>];
+  
+  /**
+   * Creates a nullable Date state bound to a query param.
+   * 
+   * @param defaultValue Optional default value (defaults to null)
+   * @param opts Optional min/max clamping and history action
+   * @returns A tuple `[value, setValue]` where value can be null
+   */
+  optional(defaultValue?: Date | null, opts?: { min?: Date; max?: Date; action?: HistoryAction }): [Date | null, Updater<Date | null>];
+}
+
+interface EnumBuilder<U extends string> {
+  /**
+   * Creates a non-nullable enum state bound to a query param.
+   * 
+   * @param allowed Array of allowed string values
+   * @param defaultValue Required default value when the param is not in allowed list
+   * @param opts Optional history action
+   * @returns A tuple `[value, setValue]` where value is never null
+   */
+  (allowed: readonly U[], defaultValue: U, opts?: { action?: HistoryAction }): [U, Updater<U>];
+  
+  /**
+   * Creates a nullable enum state bound to a query param.
+   * 
+   * @param allowed Array of allowed string values
+   * @param defaultValue Optional default value (defaults to null)
+   * @param opts Optional history action
+   * @returns A tuple `[value, setValue]` where value can be null
+   */
+  optional(allowed: readonly U[], defaultValue?: U | null, opts?: { action?: HistoryAction }): [U | null, Updater<U | null>];
+}
+
+interface CustomBuilder<T> {
+  /**
+   * Creates a non-nullable custom state bound to a query param.
+   * 
+   * @param defaultValue Required default value when parsing fails
+   * @param parse Function parsing the raw string into T (return null on failure)
+   * @param format Function formatting T into a string
+   * @param opts Optional history action
+   * @returns A tuple `[value, setValue]` where value is never null
+   */
+  (
+    defaultValue: T,
+    parse: (raw: string) => T | null,
+    format: (value: T) => string,
+    opts?: { action?: HistoryAction }
+  ): [T, Updater<T>];
+  
+  /**
+   * Creates a nullable custom state bound to a query param.
+   * 
+   * @param defaultValue Optional default value (defaults to null)
+   * @param parse Function parsing the raw string into T (return null on failure)
+   * @param format Function formatting T into a string (null values result in empty string)
+   * @param opts Optional history action
+   * @returns A tuple `[value, setValue]` where value can be null
+   */
+  optional(
+    defaultValue: T | null,
+    parse: (raw: string) => T | null,
+    format: (value: T | null) => string,
+    opts?: { action?: HistoryAction }
+  ): [T | null, Updater<T | null>];
+}
+
+interface JsonBuilder<T> {
+  /**
+   * Creates a non-nullable JSON state bound to a query param.
+   * 
+   * @param defaultValue Required default value when parsing fails
+   * @param opts Optional validation, omitEmpty, custom serializers, and history action
+   * @returns A tuple `[value, setValue]` where value is never null
+   */
+  (
+    defaultValue: T,
+    opts?: {
+      validate?: (value: unknown) => value is T;
+      omitEmpty?: (value: T) => boolean;
+      stringify?: (value: T) => string;
+      parse?: (raw: string) => unknown;
+      action?: HistoryAction;
+    }
+  ): [T, Updater<T>];
+  
+  /**
+   * Creates a nullable JSON state bound to a query param.
+   * 
+   * @param defaultValue Optional default value (defaults to null)
+   * @param opts Optional validation, omitEmpty, custom serializers, and history action
+   * @returns A tuple `[value, setValue]` where value can be null
+   */
+  optional(
+    defaultValue?: T | null,
+    opts?: {
+      validate?: (value: unknown) => value is T;
+      omitEmpty?: (value: T) => boolean;
+      stringify?: (value: T) => string;
+      parse?: (raw: string) => unknown;
+      action?: HistoryAction;
+    }
+  ): [T | null, Updater<T | null>];
+}
+
+/**
  * Public API: returns builder methods for creating typed query‑state pairs.
  *
  * Pattern:
- *   const [value, setValue] = useShareableState('key').number(123);
+ *   const [value, setValue] = useShareableState('key').number(123); // non-nullable
+ *   const [value, setValue] = useShareableState('key').number().optional(); // nullable
  *
  * Available builders:
- * - number(defaultValue): number
- * - string(defaultValue): string
- * - boolean(defaultValue): boolean (stored as '1' | '0')
- * - date(defaultValue): Date (stored as 'yyyy-MM-dd')
- * - enum(allowed, defaultValue): U extends string
- * - custom(defaultValue, parse, format): T
+ * - number(defaultValue): number (non-nullable) | number().optional(): number | null
+ * - string(defaultValue): string (non-nullable) | string().optional(): string | null
+ * - boolean(defaultValue): boolean (non-nullable) | boolean().optional(): boolean | null
+ * - date(defaultValue): Date (non-nullable) | date().optional(): Date | null
+ * - enum<U>(allowed, defaultValue): U (non-nullable) | enum<U>().optional(allowed): U | null
+ * - custom<T>(defaultValue, parse, format): T (non-nullable) | custom<T>().optional(): T | null
+ * - json<T>(defaultValue): T (non-nullable) | json<T>().optional(): T | null
  */
 export function useShareableState(key: string) {
-  return {
-    /**
-     * Binds a number state to a query param. Invalid/NaN values fall back to default.
-     *
-     * The number is stored as a base-10 string in the URL. You can optionally
-     * constrain and normalize the value using `min`, `max` and `step`.
-     *
-     * @param defaultValue Initial value when the param is missing/invalid
-     * @param opts Optional constraints
-     * @param opts.min Minimum allowed value (values below are clamped)
-     * @param opts.max Maximum allowed value (values above are clamped)
-     * @param opts.step Rounds to the nearest multiple of this step (must be > 0)
-     * @param opts.action History action to use when updating the URL (push or replace)
-     * @returns A tuple `[value, setValue]`
-     * @example
-     * const [n, setN] = useShareableState('n').number(0, { min: 0, step: 1 });
-     */
-    number(
-      defaultValue: number | null,
-      opts?: { min?: number; max?: number; step?: number; action?: HistoryAction },
-    ): [number | null, Updater<number | null>] {
-      return useQueryParam<number | null>(
+  // Create the number builder
+  const numberBuilder: NumberBuilder = Object.assign(
+    (defaultValue: number, opts?: { min?: number; max?: number; step?: number; action?: HistoryAction }) => {
+      return useQueryParamNonNull<number>(
         key,
         defaultValue,
         (raw) => {
           const n = Number(raw);
           return isNaN(n) ? null : n;
         },
-        (v) => (v === null ? '' : String(v)),
+        (v) => String(v),
         (v) => {
-          if (v === null) return v;
           let x = v;
           if (typeof opts?.min === 'number') x = Math.max(opts.min, x);
           if (typeof opts?.max === 'number') x = Math.min(opts.max, x);
@@ -324,36 +657,45 @@ export function useShareableState(key: string) {
         opts?.action !== undefined ? { action: opts.action } : undefined,
       );
     },
-    /**
-     * Binds a string state to a query param. No transformation is applied.
-     *
-     * Use `minLength`/`maxLength` to coerce/pad or slice the string. An empty string
-     * removes the query param from the URL.
-     *
-     * @param defaultValue Initial value when the param is missing
-     * @param opts Optional length constraints and history action
-     * @param opts.minLength Minimum allowed length (strings shorter are padded)
-     * @param opts.maxLength Maximum allowed length (strings longer are truncated)
-     * @param opts.action History action to use when updating the URL (push or replace)
-     * @returns A tuple `[value, setValue]`
-     * @example
-     * const [q, setQ] = useShareableState('q').string('');
-     */
-    string(
-      defaultValue: string | null,
-      opts?: { minLength?: number; maxLength?: number; action?: HistoryAction },
-    ): [string | null, Updater<string | null>] {
-      return useQueryParam<string | null>(
+    {
+      optional: (defaultValue: number | null = null, opts?: { min?: number; max?: number; step?: number; action?: HistoryAction }) => {
+        return useQueryParam<number>(
+          key,
+          defaultValue,
+          (raw) => {
+            const n = Number(raw);
+            return isNaN(n) ? null : n;
+          },
+          (v) => (v === null ? '' : String(v)),
+          (v) => {
+            if (v === null) return v;
+            let x = v;
+            if (typeof opts?.min === 'number') x = Math.max(opts.min, x);
+            if (typeof opts?.max === 'number') x = Math.min(opts.max, x);
+            if (typeof opts?.step === 'number' && isFinite(opts.step) && opts.step > 0) {
+              const steps = Math.round(x / opts.step);
+              x = steps * opts.step;
+            }
+            return x;
+          },
+          opts?.action !== undefined ? { action: opts.action } : undefined,
+        );
+      }
+    }
+  );
+
+  // Create the string builder
+  const stringBuilder: StringBuilder = Object.assign(
+    (defaultValue: string, opts?: { minLength?: number; maxLength?: number; action?: HistoryAction }) => {
+      return useQueryParamNonNull<string>(
         key,
         defaultValue,
         (raw) => raw,
-        (v) => (v === null ? '' : v),
+        (v) => v,
         (v) => {
-          if (v === null) return v;
-          let s = v ?? '';
+          let s = v;
           if (typeof opts?.maxLength === 'number') s = s.slice(0, Math.max(0, opts.maxLength));
           if (typeof opts?.minLength === 'number' && s.length < opts.minLength) {
-            // pad with spaces if needed (simple strategy)
             s = s.padEnd(opts.minLength, ' ');
           }
           return s;
@@ -361,19 +703,32 @@ export function useShareableState(key: string) {
         opts?.action !== undefined ? { action: opts.action } : undefined,
       );
     },
-    /**
-     * Binds a boolean state to a query param, using '1' and '0' representations.
-     * Accepts common truthy/falsy string variants when parsing.
-     *
-     * @param defaultValue Initial boolean when the param is missing
-     * @param opts Optional history action
-     * @param opts.action History action to use when updating the URL (push or replace)
-     * @returns A tuple `[value, setValue]`
-     * @example
-     * const [open, setOpen] = useShareableState('open').boolean(false);
-     */
-    boolean(defaultValue: boolean | null, opts?: { action?: HistoryAction }): [boolean | null, Updater<boolean | null>] {
-      return useQueryParam<boolean | null>(
+    {
+      optional: (defaultValue: string | null = null, opts?: { minLength?: number; maxLength?: number; action?: HistoryAction }) => {
+        return useQueryParam<string>(
+          key,
+          defaultValue,
+          (raw) => raw,
+          (v) => (v === null ? '' : v),
+          (v) => {
+            if (v === null) return v;
+            let s = v;
+            if (typeof opts?.maxLength === 'number') s = s.slice(0, Math.max(0, opts.maxLength));
+            if (typeof opts?.minLength === 'number' && s.length < opts.minLength) {
+              s = s.padEnd(opts.minLength, ' ');
+            }
+            return s;
+          },
+          opts?.action !== undefined ? { action: opts.action } : undefined,
+        );
+      }
+    }
+  );
+
+  // Create the boolean builder
+  const booleanBuilder: BooleanBuilder = Object.assign(
+    (defaultValue: boolean, opts?: { action?: HistoryAction }) => {
+      return useQueryParamNonNull<boolean>(
         key,
         defaultValue,
         (raw) => {
@@ -382,25 +737,34 @@ export function useShareableState(key: string) {
           if (['0', 'false', 'f', 'no', 'n'].includes(norm)) return false;
           return null;
         },
-        (v) => (v === null ? '' : v ? '1' : '0'),
+        (v) => v ? '1' : '0',
         undefined,
         opts?.action !== undefined ? { action: opts.action } : undefined,
       );
     },
-    /**
-     * Binds a Date state to a query param, persisted as 'yyyy-MM-dd'.
-     *
-     * @param defaultValue Initial date when the param is missing/invalid
-     * @param opts Optional min/max clamping and history action
-     * @param opts.min Minimum allowed date (dates before are clamped)
-     * @param opts.max Maximum allowed date (dates after are clamped)
-     * @param opts.action History action to use when updating the URL (push or replace)
-     * @returns A tuple `[value, setValue]`
-     * @example
-     * const [start, setStart] = useShareableState('start').date(new Date());
-     */
-    date(defaultValue: Date | null, opts?: { min?: Date; max?: Date; action?: HistoryAction }): [Date | null, Updater<Date | null>] {
-      return useQueryParam<Date | null>(
+    {
+      optional: (defaultValue: boolean | null = null, opts?: { action?: HistoryAction }) => {
+        return useQueryParam<boolean>(
+          key,
+          defaultValue,
+          (raw) => {
+            const norm = raw.trim().toLowerCase();
+            if (['1', 'true', 't', 'yes', 'y'].includes(norm)) return true;
+            if (['0', 'false', 'f', 'no', 'n'].includes(norm)) return false;
+            return null;
+          },
+          (v) => (v === null ? '' : v ? '1' : '0'),
+          undefined,
+          opts?.action !== undefined ? { action: opts.action } : undefined,
+        );
+      }
+    }
+  );
+
+  // Create the date builder
+  const dateBuilder: DateBuilder = Object.assign(
+    (defaultValue: Date, opts?: { min?: Date; max?: Date; action?: HistoryAction }) => {
+      return useQueryParamNonNull<Date>(
         key,
         defaultValue,
         (raw) => {
@@ -408,14 +772,12 @@ export function useShareableState(key: string) {
           return isNaN(d.getTime()) ? null : d;
         },
         (v) => {
-          if (v === null) return '';
           const yyyy = v.getUTCFullYear();
           const mm = String(v.getUTCMonth() + 1).padStart(2, '0');
           const dd = String(v.getUTCDate()).padStart(2, '0');
           return `${yyyy}-${mm}-${dd}`;
         },
         (v) => {
-          if (v === null) return v;
           let d = v;
           if (opts?.min && d < opts.min) d = opts.min;
           if (opts?.max && d > opts.max) d = opts.max;
@@ -424,117 +786,246 @@ export function useShareableState(key: string) {
         opts?.action !== undefined ? { action: opts.action } : undefined,
       );
     },
+    {
+      optional: (defaultValue: Date | null = null, opts?: { min?: Date; max?: Date; action?: HistoryAction }) => {
+        return useQueryParam<Date>(
+          key,
+          defaultValue,
+          (raw) => {
+            const d = new Date(raw);
+            return isNaN(d.getTime()) ? null : d;
+          },
+          (v) => {
+            if (v === null) return '';
+            const yyyy = v.getUTCFullYear();
+            const mm = String(v.getUTCMonth() + 1).padStart(2, '0');
+            const dd = String(v.getUTCDate()).padStart(2, '0');
+            return `${yyyy}-${mm}-${dd}`;
+          },
+          (v) => {
+            if (v === null) return v;
+            let d = v;
+            if (opts?.min && d < opts.min) d = opts.min;
+            if (opts?.max && d > opts.max) d = opts.max;
+            return d;
+          },
+          opts?.action !== undefined ? { action: opts.action } : undefined,
+        );
+      }
+    }
+  );
+
+  return {
     /**
-     * Binds a string literal union (enum-like) to a query param.
-     * If the URL value is not within the allowed list, the default is used.
-     *
+     * Number state builder. Use .number(defaultValue) for non-nullable or .number().optional() for nullable.
+     * 
+     * @example
+     * const [count, setCount] = useShareableState('count').number(0); // non-nullable
+     * const [optional, setOptional] = useShareableState('opt').number().optional(); // nullable
+     */
+    number: numberBuilder,
+
+    /**
+     * String state builder. Use .string(defaultValue) for non-nullable or .string().optional() for nullable.
+     * 
+     * @example
+     * const [name, setName] = useShareableState('name').string(''); // non-nullable
+     * const [optional, setOptional] = useShareableState('opt').string().optional(); // nullable
+     */
+    string: stringBuilder,
+
+    /**
+     * Boolean state builder. Use .boolean(defaultValue) for non-nullable or .boolean().optional() for nullable.
+     * 
+     * @example
+     * const [active, setActive] = useShareableState('active').boolean(false); // non-nullable
+     * const [optional, setOptional] = useShareableState('opt').boolean().optional(); // nullable
+     */
+    boolean: booleanBuilder,
+
+    /**
+     * Date state builder. Use .date(defaultValue) for non-nullable or .date().optional() for nullable.
+     * 
+     * @example
+     * const [start, setStart] = useShareableState('start').date(new Date()); // non-nullable
+     * const [optional, setOptional] = useShareableState('opt').date().optional(); // nullable
+     */
+    date: dateBuilder,
+
+    /**
+     * Enum state builder. Binds a string literal union (enum-like) to a query param.
+     * 
      * @template U extends string
-     * @param allowed Array of allowed string values
-     * @param defaultValue Fallback used when the URL value is not allowed
-     * @param opts Optional history action
-     * @param opts.action History action to use when updating the URL (push or replace)
-     * @returns A tuple `[value, setValue]`
      * @example
      * type Theme = 'light' | 'dark';
-     * const [theme, setTheme] = useShareableState('t').enum<Theme>(['light','dark'], 'light');
+     * const [theme, setTheme] = useShareableState('theme').enum<Theme>(['light','dark'], 'light'); // non-nullable
+     * const [optional, setOptional] = useShareableState('opt').enum<Theme>().optional(['light','dark']); // nullable
      */
-    enum<U extends string>(allowed: readonly U[], defaultValue: U | null, opts?: { action?: HistoryAction }): [U | null, Updater<U | null>] {
-      return useQueryParam<U | null>(
-        key,
-        defaultValue,
-        (raw) => (allowed.includes(raw as U) ? (raw as U) : null),
-        (v) => (v === null ? '' : v),
-        undefined,
-        opts?.action !== undefined ? { action: opts.action } : undefined,
-      );
-    },
-    /**
-     * Fully custom binding. Provide your own parse/format functions.
-     * Return null from parse to indicate an invalid/unsupported value and fall back to default.
-     *
-     * @template T
-     * @param defaultValue Fallback when the URL value cannot be parsed
-     * @param parse Function parsing the raw string into T (return `null` on failure)
-     * @param format Function formatting T into a string (return empty string to delete param)
-     * @param opts Optional history action
-     * @param opts.action History action to use when updating the URL (push or replace)
-     * @returns A tuple `[value, setValue]`
-     * @example
-     * const [ids, setIds] = useShareableState('ids').custom<number[]>([],
-     *   raw => raw.split(',').map(Number).filter(Number.isFinite),
-     *   v => v.join(',')
-     * );
-     */
-    custom<T>(
-      defaultValue: T | null,
-      parse: (raw: string) => T | null,
-      format: (value: T | null) => string,
-      opts?: { action?: HistoryAction },
-    ): [T | null, Updater<T | null>] {
-      return useQueryParam<T | null>(
-        key,
-        defaultValue,
-        parse,
-        format,
-        undefined,
-        opts?.action !== undefined ? { action: opts.action } : undefined,
-      );
-    },
-    /**
-     * Binds a JSON-serializable value (object/array) to a query param.
-     * You can optionally provide a validator to ensure shape and an omitEmpty function
-     * to clear the param when the value is considered empty.
-     *
-     * @template T
-     * @param defaultValue Initial value when the param is missing
-     * @param opts Optional configuration
-     * @param opts.validate Type guard to validate parsed JSON (return false to fall back)
-     * @param opts.omitEmpty When returns true, the param is deleted from the URL
-     * @param opts.stringify Custom JSON serializer
-     * @param opts.parse Custom JSON parser
-     * @param opts.action History action to use when updating the URL (push or replace)
-     * @returns A tuple `[value, setValue]`
-     * @example
-     * const [filters, setFilters] = useShareableState('f').json<{ q: string }>({ q: '' });
-     */
-    json<T>(
-      defaultValue: T | null,
-      opts?: {
-        validate?: (value: unknown) => value is T;
-        omitEmpty?: (value: T) => boolean; // when true, param is deleted
-        stringify?: (value: T) => string; // custom JSON stringify
-        parse?: (raw: string) => unknown; // custom JSON parse
-        action?: HistoryAction;
-      },
-    ): [T | null, Updater<T | null>] {
-      const parseJson = (raw: string): T | null => {
-        try {
-          const parsed = opts?.parse ? opts.parse(raw) : JSON.parse(raw);
-          if (opts?.validate) {
-            return opts.validate(parsed) ? (parsed as T) : null;
+    enum<U extends string>(): EnumBuilder<U> {
+      const enumBuilder: EnumBuilder<U> = Object.assign(
+        (allowed: readonly U[], defaultValue: U, opts?: { action?: HistoryAction }) => {
+          return useQueryParamNonNull<U>(
+            key,
+            defaultValue,
+            (raw) => (allowed.includes(raw as U) ? (raw as U) : null),
+            (v) => v,
+            undefined,
+            opts?.action !== undefined ? { action: opts.action } : undefined,
+          );
+        },
+        {
+          optional: (allowed: readonly U[], defaultValue: U | null = null, opts?: { action?: HistoryAction }) => {
+            return useQueryParam<U>(
+              key,
+              defaultValue,
+              (raw) => (allowed.includes(raw as U) ? (raw as U) : null),
+              (v) => (v === null ? '' : v),
+              undefined,
+              opts?.action !== undefined ? { action: opts.action } : undefined,
+            );
           }
-          return parsed as T;
-        } catch {
-          return null;
         }
-      };
-      const formatJson = (value: T | null): string => {
-        if (value === null) return '';
-        if (opts?.omitEmpty && opts.omitEmpty(value)) return '';
-        try {
-          return opts?.stringify ? opts.stringify(value) : JSON.stringify(value);
-        } catch {
-          return '';
-        }
-      };
-      return useQueryParam<T | null>(
-        key,
-        defaultValue,
-        parseJson,
-        formatJson,
-        undefined,
-        opts?.action !== undefined ? { action: opts.action } : undefined,
       );
+      return enumBuilder;
+    },
+
+    /**
+     * Custom state builder. Provide your own parse/format functions.
+     * 
+     * @template T
+     * @example
+     * const [ids, setIds] = useShareableState('ids').custom<number[]>([], parse, format); // non-nullable
+     * const [optional, setOptional] = useShareableState('opt').custom<number[]>().optional(null, parse, format); // nullable
+     */
+    custom<T>(): CustomBuilder<T> {
+      const customBuilder: CustomBuilder<T> = Object.assign(
+        (
+          defaultValue: T,
+          parse: (raw: string) => T | null,
+          format: (value: T) => string,
+          opts?: { action?: HistoryAction }
+        ) => {
+          return useQueryParamNonNull<T>(
+            key,
+            defaultValue,
+            parse,
+            format,
+            undefined,
+            opts?.action !== undefined ? { action: opts.action } : undefined,
+          );
+        },
+        {
+          optional: (
+            defaultValue: T | null,
+            parse: (raw: string) => T | null,
+            format: (value: T | null) => string,
+            opts?: { action?: HistoryAction }
+          ) => {
+            return useQueryParam<T>(
+              key,
+              defaultValue,
+              parse,
+              format,
+              undefined,
+              opts?.action !== undefined ? { action: opts.action } : undefined,
+            );
+          }
+        }
+      );
+      return customBuilder;
+    },
+
+    /**
+     * JSON state builder. Binds a JSON-serializable value to a query param.
+     * 
+     * @template T
+     * @example
+     * const [data, setData] = useShareableState('data').json<{q: string}>({q: ''}); // non-nullable
+     * const [optional, setOptional] = useShareableState('opt').json<{q: string}>().optional(); // nullable
+     */
+    json<T>(): JsonBuilder<T> {
+      const jsonBuilder: JsonBuilder<T> = Object.assign(
+        (
+          defaultValue: T,
+          opts?: {
+            validate?: (value: unknown) => value is T;
+            omitEmpty?: (value: T) => boolean;
+            stringify?: (value: T) => string;
+            parse?: (raw: string) => unknown;
+            action?: HistoryAction;
+          }
+        ) => {
+          const parseJson = (raw: string): T | null => {
+            try {
+              const parsed = opts?.parse ? opts.parse(raw) : JSON.parse(raw);
+              if (opts?.validate) {
+                return opts.validate(parsed) ? (parsed as T) : null;
+              }
+              return parsed as T;
+            } catch {
+              return null;
+            }
+          };
+          const formatJson = (value: T): string => {
+            if (opts?.omitEmpty && opts.omitEmpty(value)) return '';
+            try {
+              return opts?.stringify ? opts.stringify(value) : JSON.stringify(value);
+            } catch {
+              return '';
+            }
+          };
+          return useQueryParamNonNull<T>(
+            key,
+            defaultValue,
+            parseJson,
+            formatJson,
+            undefined,
+            opts?.action !== undefined ? { action: opts.action } : undefined,
+          );
+        },
+        {
+          optional: (
+            defaultValue: T | null = null,
+            opts?: {
+              validate?: (value: unknown) => value is T;
+              omitEmpty?: (value: T) => boolean;
+              stringify?: (value: T) => string;
+              parse?: (raw: string) => unknown;
+              action?: HistoryAction;
+            }
+          ) => {
+            const parseJson = (raw: string): T | null => {
+              try {
+                const parsed = opts?.parse ? opts.parse(raw) : JSON.parse(raw);
+                if (opts?.validate) {
+                  return opts.validate(parsed) ? (parsed as T) : null;
+                }
+                return parsed as T;
+              } catch {
+                return null;
+              }
+            };
+            const formatJson = (value: T | null): string => {
+              if (value === null) return '';
+              if (opts?.omitEmpty && opts.omitEmpty(value)) return '';
+              try {
+                return opts?.stringify ? opts.stringify(value) : JSON.stringify(value);
+              } catch {
+                return '';
+              }
+            };
+            return useQueryParam<T>(
+              key,
+              defaultValue,
+              parseJson,
+              formatJson,
+              undefined,
+              opts?.action !== undefined ? { action: opts.action } : undefined,
+            );
+          }
+        }
+      );
+      return jsonBuilder;
     },
   } as const;
 }

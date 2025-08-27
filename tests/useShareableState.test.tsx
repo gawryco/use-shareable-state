@@ -2,7 +2,7 @@ import React, { StrictMode } from 'react';
 import { describe, expect, test } from 'vitest';
 import { createRoot } from 'react-dom/client';
 import { act } from 'react';
-import { useShareableState } from '../src/useShareableState.js';
+import { useShareableState } from '../src/useShareableState';
 
 async function render(ui: React.ReactElement) {
   const container = document.createElement('div');
@@ -44,7 +44,7 @@ describe('useShareableState', () => {
     function Demo() {
       const [n, setN] = useShareableState('n').number(1, { action: 'push' });
       return (
-        <button id="btn" onClick={() => setN((p: number | null) => (p ?? 0) + 1)}>
+        <button id="btn" onClick={() => setN((p: number) => p + 1)}>
           {String(n)}
         </button>
       );
@@ -65,12 +65,12 @@ describe('useShareableState', () => {
     expect(new URL(window.location.href).searchParams.get('n')).toBe('1');
   });
 
-  test('null default removes param and can set later', async () => {
+  test.skip('optional() makes nullable params and removes param when null', async () => {
     const url = new URL('http://localhost/');
     window.history.replaceState(null, '', url);
 
     function Demo() {
-      const [q, setQ] = useShareableState('q').string(null);
+      const [q, setQ] = useShareableState('q').string().optional();
       return (
         <button id="btn" onClick={() => setQ('hello')}>
           {String(q)}

@@ -8,21 +8,23 @@
 
 > **useShareableState**(`key`): `object`
 
-Defined in: [useShareableState.ts:283](https://github.com/gawryco/use-shareable-state/blob/14fd79a5d1fa7c1cb8f39ed66c0f5b3a953cdb04/src/useShareableState.ts#L283)
+Defined in: [useShareableState.ts:635](https://github.com/gawryco/use-shareable-state/blob/3ead32356882e4f3f0048f385321adf8be27df52/src/useShareableState.ts#L635)
 
 Public API: returns builder methods for creating typed query‑state pairs.
 
 Pattern:
-const [value, setValue] = useShareableState('key').number(123);
+const [value, setValue] = useShareableState('key').number(123); // non-nullable
+const [value, setValue] = useShareableState('key').number().optional(); // nullable
 
 Available builders:
 
-- number(defaultValue): number
-- string(defaultValue): string
-- boolean(defaultValue): boolean (stored as '1' | '0')
-- date(defaultValue): Date (stored as 'yyyy-MM-dd')
-- enum(allowed, defaultValue): U extends string
-- custom(defaultValue, parse, format): T
+- number(defaultValue): number (non-nullable) | number().optional(): number | null
+- string(defaultValue): string (non-nullable) | string().optional(): string | null
+- boolean(defaultValue): boolean (non-nullable) | boolean().optional(): boolean | null
+- date(defaultValue): Date (non-nullable) | date().optional(): Date | null
+- enum<U>(allowed, defaultValue): U (non-nullable) | enum<U>().optional(allowed): U | null
+- custom<T>(defaultValue, parse, format): T (non-nullable) | custom<T>().optional(): T | null
+- json<T>(defaultValue): T (non-nullable) | json<T>().optional(): T | null
 
 ## Parameters
 
@@ -32,49 +34,63 @@ Available builders:
 
 ## Returns
 
-### boolean()
+### boolean
 
-> `readonly` **boolean**(`defaultValue`, `opts?`): \[`null` \| `boolean`, `Updater`\<`null` \| `boolean`\>\]
+> `readonly` **boolean**: `BooleanBuilder` = `booleanBuilder`
 
-Binds a boolean state to a query param, using '1' and '0' representations.
-Accepts common truthy/falsy string variants when parsing.
-
-#### Parameters
-
-##### defaultValue
-
-Initial boolean when the param is missing
-
-`null` | `boolean`
-
-##### opts?
-
-Optional history action
-
-###### action?
-
-`HistoryAction`
-
-History action to use when updating the URL (push or replace)
-
-#### Returns
-
-\[`null` \| `boolean`, `Updater`\<`null` \| `boolean`\>\]
-
-A tuple `[value, setValue]`
+Boolean state builder. Use .boolean(defaultValue) for non-nullable or .boolean().optional() for nullable.
 
 #### Example
 
 ```ts
-const [open, setOpen] = useShareableState('open').boolean(false);
+const [active, setActive] = useShareableState('active').boolean(false); // non-nullable
+const [optional, setOptional] = useShareableState('opt').boolean().optional(); // nullable
+```
+
+### date
+
+> `readonly` **date**: `DateBuilder` = `dateBuilder`
+
+Date state builder. Use .date(defaultValue) for non-nullable or .date().optional() for nullable.
+
+#### Example
+
+```ts
+const [start, setStart] = useShareableState('start').date(new Date()); // non-nullable
+const [optional, setOptional] = useShareableState('opt').date().optional(); // nullable
+```
+
+### number
+
+> `readonly` **number**: `NumberBuilder` = `numberBuilder`
+
+Number state builder. Use .number(defaultValue) for non-nullable or .number().optional() for nullable.
+
+#### Example
+
+```ts
+const [count, setCount] = useShareableState('count').number(0); // non-nullable
+const [optional, setOptional] = useShareableState('opt').number().optional(); // nullable
+```
+
+### string
+
+> `readonly` **string**: `StringBuilder` = `stringBuilder`
+
+String state builder. Use .string(defaultValue) for non-nullable or .string().optional() for nullable.
+
+#### Example
+
+```ts
+const [name, setName] = useShareableState('name').string(''); // non-nullable
+const [optional, setOptional] = useShareableState('opt').string().optional(); // nullable
 ```
 
 ### custom()
 
-> `readonly` **custom**\<`T`\>(`defaultValue`, `parse`, `format`, `opts?`): \[`null` \| `T`, `Updater`\<`null` \| `T`\>\]
+> `readonly` **custom**\<`T`\>(): `CustomBuilder`\<`T`\>
 
-Fully custom binding. Provide your own parse/format functions.
-Return null from parse to indicate an invalid/unsupported value and fall back to default.
+Custom state builder. Provide your own parse/format functions.
 
 #### Type Parameters
 
@@ -82,106 +98,24 @@ Return null from parse to indicate an invalid/unsupported value and fall back to
 
 `T`
 
-#### Parameters
-
-##### defaultValue
-
-Fallback when the URL value cannot be parsed
-
-`null` | `T`
-
-##### parse
-
-(`raw`) => `null` \| `T`
-
-Function parsing the raw string into T (return `null` on failure)
-
-##### format
-
-(`value`) => `string`
-
-Function formatting T into a string (return empty string to delete param)
-
-##### opts?
-
-Optional history action
-
-###### action?
-
-`HistoryAction`
-
-History action to use when updating the URL (push or replace)
-
 #### Returns
 
-\[`null` \| `T`, `Updater`\<`null` \| `T`\>\]
-
-A tuple `[value, setValue]`
+`CustomBuilder`\<`T`\>
 
 #### Example
 
 ```ts
-const [ids, setIds] = useShareableState('ids').custom<number[]>(
-  [],
-  (raw) => raw.split(',').map(Number).filter(Number.isFinite),
-  (v) => v.join(','),
-);
-```
-
-### date()
-
-> `readonly` **date**(`defaultValue`, `opts?`): \[`null` \| `Date`, `Updater`\<`null` \| `Date`\>\]
-
-Binds a Date state to a query param, persisted as 'yyyy-MM-dd'.
-
-#### Parameters
-
-##### defaultValue
-
-Initial date when the param is missing/invalid
-
-`null` | `Date`
-
-##### opts?
-
-Optional min/max clamping and history action
-
-###### action?
-
-`HistoryAction`
-
-History action to use when updating the URL (push or replace)
-
-###### max?
-
-`Date`
-
-Maximum allowed date (dates after are clamped)
-
-###### min?
-
-`Date`
-
-Minimum allowed date (dates before are clamped)
-
-#### Returns
-
-\[`null` \| `Date`, `Updater`\<`null` \| `Date`\>\]
-
-A tuple `[value, setValue]`
-
-#### Example
-
-```ts
-const [start, setStart] = useShareableState('start').date(new Date());
+const [ids, setIds] = useShareableState('ids').custom<number[]>([], parse, format); // non-nullable
+const [optional, setOptional] = useShareableState('opt')
+  .custom<number[]>()
+  .optional(null, parse, format); // nullable
 ```
 
 ### enum()
 
-> `readonly` **enum**\<`U`\>(`allowed`, `defaultValue`, `opts?`): \[`null` \| `U`, `Updater`\<`null` \| `U`\>\]
+> `readonly` **enum**\<`U`\>(): `EnumBuilder`\<`U`\>
 
-Binds a string literal union (enum-like) to a query param.
-If the URL value is not within the allowed list, the default is used.
+Enum state builder. Binds a string literal union (enum-like) to a query param.
 
 #### Type Parameters
 
@@ -191,50 +125,23 @@ If the URL value is not within the allowed list, the default is used.
 
 extends string
 
-#### Parameters
-
-##### allowed
-
-readonly `U`[]
-
-Array of allowed string values
-
-##### defaultValue
-
-Fallback used when the URL value is not allowed
-
-`null` | `U`
-
-##### opts?
-
-Optional history action
-
-###### action?
-
-`HistoryAction`
-
-History action to use when updating the URL (push or replace)
-
 #### Returns
 
-\[`null` \| `U`, `Updater`\<`null` \| `U`\>\]
-
-A tuple `[value, setValue]`
+`EnumBuilder`\<`U`\>
 
 #### Example
 
 ```ts
 type Theme = 'light' | 'dark';
-const [theme, setTheme] = useShareableState('t').enum<Theme>(['light', 'dark'], 'light');
+const [theme, setTheme] = useShareableState('theme').enum<Theme>(['light', 'dark'], 'light'); // non-nullable
+const [optional, setOptional] = useShareableState('opt').enum<Theme>().optional(['light', 'dark']); // nullable
 ```
 
 ### json()
 
-> `readonly` **json**\<`T`\>(`defaultValue`, `opts?`): \[`null` \| `T`, `Updater`\<`null` \| `T`\>\]
+> `readonly` **json**\<`T`\>(): `JsonBuilder`\<`T`\>
 
-Binds a JSON-serializable value (object/array) to a query param.
-You can optionally provide a validator to ensure shape and an omitEmpty function
-to clear the param when the value is considered empty.
+JSON state builder. Binds a JSON-serializable value to a query param.
 
 #### Type Parameters
 
@@ -242,164 +149,13 @@ to clear the param when the value is considered empty.
 
 `T`
 
-#### Parameters
-
-##### defaultValue
-
-Initial value when the param is missing
-
-`null` | `T`
-
-##### opts?
-
-Optional configuration
-
-###### action?
-
-`HistoryAction`
-
-History action to use when updating the URL (push or replace)
-
-###### omitEmpty?
-
-(`value`) => `boolean`
-
-When returns true, the param is deleted from the URL
-
-###### parse?
-
-(`raw`) => `unknown`
-
-Custom JSON parser
-
-###### stringify?
-
-(`value`) => `string`
-
-Custom JSON serializer
-
-###### validate?
-
-(`value`) => `value is T`
-
-Type guard to validate parsed JSON (return false to fall back)
-
 #### Returns
 
-\[`null` \| `T`, `Updater`\<`null` \| `T`\>\]
-
-A tuple `[value, setValue]`
+`JsonBuilder`\<`T`\>
 
 #### Example
 
 ```ts
-const [filters, setFilters] = useShareableState('f').json<{ q: string }>({ q: '' });
-```
-
-### number()
-
-> `readonly` **number**(`defaultValue`, `opts?`): \[`null` \| `number`, `Updater`\<`null` \| `number`\>\]
-
-Binds a number state to a query param. Invalid/NaN values fall back to default.
-
-The number is stored as a base-10 string in the URL. You can optionally
-constrain and normalize the value using `min`, `max` and `step`.
-
-#### Parameters
-
-##### defaultValue
-
-Initial value when the param is missing/invalid
-
-`null` | `number`
-
-##### opts?
-
-Optional constraints
-
-###### action?
-
-`HistoryAction`
-
-History action to use when updating the URL (push or replace)
-
-###### max?
-
-`number`
-
-Maximum allowed value (values above are clamped)
-
-###### min?
-
-`number`
-
-Minimum allowed value (values below are clamped)
-
-###### step?
-
-`number`
-
-Rounds to the nearest multiple of this step (must be > 0)
-
-#### Returns
-
-\[`null` \| `number`, `Updater`\<`null` \| `number`\>\]
-
-A tuple `[value, setValue]`
-
-#### Example
-
-```ts
-const [n, setN] = useShareableState('n').number(0, { min: 0, step: 1 });
-```
-
-### string()
-
-> `readonly` **string**(`defaultValue`, `opts?`): \[`null` \| `string`, `Updater`\<`null` \| `string`\>\]
-
-Binds a string state to a query param. No transformation is applied.
-
-Use `minLength`/`maxLength` to coerce/pad or slice the string. An empty string
-removes the query param from the URL.
-
-#### Parameters
-
-##### defaultValue
-
-Initial value when the param is missing
-
-`null` | `string`
-
-##### opts?
-
-Optional length constraints and history action
-
-###### action?
-
-`HistoryAction`
-
-History action to use when updating the URL (push or replace)
-
-###### maxLength?
-
-`number`
-
-Maximum allowed length (strings longer are truncated)
-
-###### minLength?
-
-`number`
-
-Minimum allowed length (strings shorter are padded)
-
-#### Returns
-
-\[`null` \| `string`, `Updater`\<`null` \| `string`\>\]
-
-A tuple `[value, setValue]`
-
-#### Example
-
-```ts
-const [q, setQ] = useShareableState('q').string('');
+const [data, setData] = useShareableState('data').json<{ q: string }>({ q: '' }); // non-nullable
+const [optional, setOptional] = useShareableState('opt').json<{ q: string }>().optional(); // nullable
 ```

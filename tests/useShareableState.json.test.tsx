@@ -21,7 +21,7 @@ describe('useShareableState/json', () => {
 
     type Filters = { q: string };
     function Demo() {
-      const [f, setF] = useShareableState('f').json<Filters>(
+      const [f, setF] = useShareableState('f').json<Filters>()(
         { q: '' },
         {
           omitEmpty: (v) => v.q === '',
