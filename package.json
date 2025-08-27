@@ -1,6 +1,6 @@
 {
   "name": "@gawryco/use-shareable-state",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "The tiny, typed React hook for URL query string state. Transform your components into shareable, bookmarkable experiences with zero boilerplate.",
   "type": "module",
   "main": "./dist/index.cjs",
