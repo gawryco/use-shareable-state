@@ -173,7 +173,10 @@ function ProductSearch() {
         placeholder="Search products..."
       />
 
-      <select value={category} onChange={(e) => setCategory(e.target.value as any)}>
+      <select
+        value={category}
+        onChange={(e) => setCategory(e.target.value as 'electronics' | 'clothing' | 'books')}
+      >
         <option value="electronics">Electronics</option>
         <option value="clothing">Clothing</option>
         <option value="books">Books</option>
@@ -220,7 +223,14 @@ function OptionalParams() {
         onChange={(e) => setSearch(e.target.value || null)}
         placeholder="Search..."
       />
-      <select value={category ?? ''} onChange={(e) => setCategory((e.target.value as any) || null)}>
+      <select
+        value={category ?? ''}
+        onChange={(e) =>
+          setCategory(
+            e.target.value ? (e.target.value as 'electronics' | 'clothing' | 'books') : null,
+          )
+        }
+      >
         <option value="">All Categories</option>
         <option value="electronics">Electronics</option>
         <option value="clothing">Clothing</option>

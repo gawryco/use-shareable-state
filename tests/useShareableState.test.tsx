@@ -65,25 +65,80 @@ describe('useShareableState', () => {
     expect(new URL(window.location.href).searchParams.get('n')).toBe('1');
   });
 
-  test.skip('optional() makes nullable params and removes param when null', async () => {
+  test('complete test', async () => {
     const url = new URL('http://localhost/');
     window.history.replaceState(null, '', url);
 
     function Demo() {
       const [q, setQ] = useShareableState('q').string().optional();
+      const [x, setX] = useShareableState('x').number(0);
+      const [y, setY] = useShareableState('y').enum(['a', 'b', 'c'], 'a');
+      const [z, setZ] = useShareableState('z').json<{ a: number }>({ a: 0 });
+      const [w, setW] = useShareableState('w').date().optional();
+
       return (
-        <button id="btn" onClick={() => setQ('hello')}>
-          {String(q)}
-        </button>
+        <div>
+          <button id="btnq" onClick={() => setQ('hello')}>
+            {String(q)}
+          </button>
+          <button id="btnx" onClick={() => setX(1)}>
+            {String(x)}
+          </button>
+          <button id="btny" onClick={() => setY('b')}>
+            {String(y)}
+          </button>
+          <button id="btnz" onClick={() => setZ({ a: 1 })}>
+            {String(z.a)}
+          </button>
+          <button id="btnw" onClick={() => setW(new Date())}>
+            {String(w)}
+          </button>
+        </div>
       );
     }
 
     const { container } = await render(<Demo />);
     expect(new URL(window.location.href).searchParams.get('q')).toBe(null);
-    const btn = container.querySelector('#btn') as HTMLButtonElement;
+    const btnq = container.querySelector('#btnq') as HTMLButtonElement;
     await act(async () => {
-      btn.click();
+      btnq.click();
     });
-    expect(new URL(window.location.href).searchParams.get('q')).toBe('hello');
+    expect(new URL(window.location.href).searchParams.get('x')).toBe('0');
+
+
+
+    const btnx = container.querySelector('#btnx') as HTMLButtonElement;
+
+    expect(new URL(window.location.href).searchParams.get('x')).toBe('0');
+    await act(async () => {
+      btnx.click();
+    });
+    expect(new URL(window.location.href).searchParams.get('x')).toBe('1');
+
+    const btny = container.querySelector('#btny') as HTMLButtonElement;
+    expect(new URL(window.location.href).searchParams.get('y')).toBe('a');
+    await act(async () => {
+      btny.click();
+    });
+    expect(new URL(window.location.href).searchParams.get('y')).toBe('b');
+    
+    const btnz = container.querySelector('#btnz') as HTMLButtonElement;
+    await act(async () => {
+      btnz.click();
+    });
+    expect(new URL(window.location.href).searchParams.get('z')).toBe('{"a":1}');
+
+    const btnw = container.querySelector('#btnw') as HTMLButtonElement;
+
+    expect(new URL(window.location.href).searchParams.get('w')).toBe(null);
+    await act(async () => {
+      btnw.click();
+    });
+    // Date is formatted as yyyy-MM-dd, so we expect today's date
+    const today = new Date();
+    const expectedDateString = `${today.getUTCFullYear()}-${String(today.getUTCMonth() + 1).padStart(2, '0')}-${String(today.getUTCDate()).padStart(2, '0')}`;
+    expect(new URL(window.location.href).searchParams.get('w')).toBe(expectedDateString);
+
+
   });
 });
