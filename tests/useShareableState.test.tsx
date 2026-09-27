@@ -2,7 +2,7 @@ import React, { StrictMode } from 'react';
 import { describe, expect, test } from 'vitest';
 import { createRoot } from 'react-dom/client';
 import { act } from 'react';
-import { useShareableState } from '../src/useShareableState';
+import { useShareableState } from '../src/useShareableState.js';
 
 async function render(ui: React.ReactElement) {
   const container = document.createElement('div');

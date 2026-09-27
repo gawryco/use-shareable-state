@@ -23,7 +23,6 @@ describe('useShareableState/events', () => {
     function Listener() {
       useEffect(() => {
         const onChanged = (e: Event) => {
-          // @ts-expect-error CustomEvent detail is not typed on Event
           if (e && (e as CustomEvent).detail?.key === 'n') received++;
         };
         window.addEventListener('qs:changed', onChanged as EventListener);

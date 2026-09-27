@@ -1,0 +1,10 @@
+{
+  // Typechecks the tests against the public API, so typing regressions fail CI
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "noEmit": true,
+    "types": ["node"]
+  },
+  "include": ["src", "tests"]
+}

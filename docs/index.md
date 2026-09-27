@@ -481,7 +481,7 @@ const [theme, setTheme] = useShareableState('theme')
 const [settings, setSettings] = useShareableState('settings').json<Settings>(
   { theme: 'light', lang: 'en' },
   {
-    validate: (obj): obj is Settings => typeof obj === 'object' && 'theme' in obj,
+    validate: (obj): obj is Settings => typeof obj === 'object' && obj !== null && 'theme' in obj,
     omitEmpty: (obj) => Object.keys(obj).length === 0,
     stringify: (obj) => JSON.stringify(obj, null, 0),
     parse: (str) => JSON.parse(str),
