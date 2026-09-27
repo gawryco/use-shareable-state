@@ -22,9 +22,9 @@
  *   setAmount(1500); // updates state AND ?amount=1500
  *   // amount is typed as: number | null
  *
- * 3) Non-nullable Date (ISO yyyy-MM-dd in URL)
- *   const [start, setStart] = useShareableState('start').date(new Date('2020-01-01'));
- *   setStart(new Date('2021-06-15')); // updates state AND ?start=2021-06-15
+ * 3) Non-nullable Date (local calendar day as yyyy-MM-dd in URL)
+ *   const [start, setStart] = useShareableState('start').date(new Date(2020, 0, 1));
+ *   setStart(new Date(2021, 5, 15)); // updates state AND ?start=2021-06-15
  *   // start is typed as: Date (never null)
  *
  * 4) Nullable Date (optional)
@@ -522,15 +522,32 @@ function formatBoolean(value: boolean): string {
   return value ? '1' : '0';
 }
 
+const DATE_ONLY = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+/**
+ * Dates are calendar days, not instants: `yyyy-MM-dd` is read as local midnight
+ * and written back from local components, so the day survives the round trip in
+ * every timezone. Days that don't exist (e.g. 2026-02-31) are rejected; other
+ * strings fall back to the Date constructor.
+ */
 function parseDate(raw: string): Date | null {
+  const match = DATE_ONLY.exec(raw);
+  if (match) {
+    const year = Number(match[1]);
+    const month = Number(match[2]) - 1;
+    const day = Number(match[3]);
+    const d = new Date(year, month, day);
+    return d.getFullYear() === year && d.getMonth() === month && d.getDate() === day ? d : null;
+  }
   const d = new Date(raw);
   return isNaN(d.getTime()) ? null : d;
 }
 
+/** Formats a Date as `yyyy-MM-dd` from its local calendar day (see parseDate). */
 function formatDate(value: Date): string {
-  const yyyy = value.getUTCFullYear();
-  const mm = String(value.getUTCMonth() + 1).padStart(2, '0');
-  const dd = String(value.getUTCDate()).padStart(2, '0');
+  const yyyy = value.getFullYear();
+  const mm = String(value.getMonth() + 1).padStart(2, '0');
+  const dd = String(value.getDate()).padStart(2, '0');
   return `${yyyy}-${mm}-${dd}`;
 }
 
@@ -911,6 +928,7 @@ export function useShareableState(key: string) {
 
     /**
      * Date state builder. Use .date(defaultValue) for non-nullable or .date().optional() for nullable.
+     * The URL holds the local calendar day as yyyy-MM-dd; parsed values are local midnight.
      *
      * @example
      * const [start, setStart] = useShareableState('start').date(new Date()); // non-nullable
