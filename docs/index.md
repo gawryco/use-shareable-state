@@ -282,19 +282,20 @@ function EventCalendar() {
   // <input type="date"> speaks yyyy-MM-dd; convert with local components, not toISOString()
   const toInput = (d: Date) =>
     `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  const fromInput = (s: string) => new Date(`${s}T00:00`); // no offset => local midnight
+  // no offset => local midnight; a cleared input ("") keeps the current value
+  const fromInput = (s: string, current: Date) => (s ? new Date(`${s}T00:00`) : current);
 
   return (
     <div>
       <input
         type="date"
         value={toInput(startDate)}
-        onChange={(e) => setStartDate(fromInput(e.target.value))}
+        onChange={(e) => setStartDate(fromInput(e.target.value, startDate))}
       />
       <input
         type="date"
         value={toInput(endDate)}
-        onChange={(e) => setEndDate(fromInput(e.target.value))}
+        onChange={(e) => setEndDate(fromInput(e.target.value, endDate))}
       />
 
       {/* URL: ?from=2024-06-01&to=2024-06-30 */}
