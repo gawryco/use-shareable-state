@@ -145,7 +145,7 @@ describe('useShareableState/json', () => {
         {
           stringify: (v) => `${v.x},${v.y}`, // Custom format: "x,y"
           parse: (raw) => {
-            const [x, y] = raw.split(',').map(Number);
+            const [x = NaN, y = NaN] = raw.split(',').map(Number);
             return { x: isNaN(x) ? 0 : x, y: isNaN(y) ? 0 : y };
           }
         }

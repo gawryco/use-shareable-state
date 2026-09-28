@@ -2,7 +2,7 @@ import React, { StrictMode } from 'react';
 import { describe, expect, test } from 'vitest';
 import { createRoot } from 'react-dom/client';
 import { act } from 'react';
-import { useShareableState } from '../src/useShareableState';
+import { useShareableState } from '../src/useShareableState.js';
 
 async function render(ui: React.ReactElement) {
   const container = document.createElement('div');
@@ -134,9 +134,9 @@ describe('useShareableState', () => {
     await act(async () => {
       btnw.click();
     });
-    // Date is formatted as yyyy-MM-dd, so we expect today's date
+    // Date is formatted as the local calendar day yyyy-MM-dd, so we expect today's date
     const today = new Date();
-    const expectedDateString = `${today.getUTCFullYear()}-${String(today.getUTCMonth() + 1).padStart(2, '0')}-${String(today.getUTCDate()).padStart(2, '0')}`;
+    const expectedDateString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     expect(new URL(window.location.href).searchParams.get('w')).toBe(expectedDateString);
 
 

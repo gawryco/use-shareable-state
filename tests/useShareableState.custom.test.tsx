@@ -144,8 +144,8 @@ describe('useShareableState/custom', () => {
         null,
         (raw) => {
           const parts = raw.split(',');
-          const lat = parseFloat(parts[0]);
-          const lng = parseFloat(parts[1]);
+          const lat = parseFloat(parts[0] ?? '');
+          const lng = parseFloat(parts[1] ?? '');
           
           if (isNaN(lat) || isNaN(lng)) return null;
           return { lat, lng };
@@ -283,7 +283,7 @@ describe('useShareableState/custom', () => {
       const [range, setRange] = useShareableState('range').custom<Range>()(
         { min: 0, max: 100 },
         (raw) => {
-          const [min, max] = raw.split('-').map(Number);
+          const [min = NaN, max = NaN] = raw.split('-').map(Number);
           return isNaN(min) || isNaN(max) ? null : { min, max };
         },
         (r) => `${r.min}-${r.max}`,

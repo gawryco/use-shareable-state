@@ -269,24 +269,32 @@ function SearchWithHistory() {
 
 ```tsx
 function EventCalendar() {
-  const [startDate, setStartDate] = useShareableState('from').date(new Date('2024-01-01'), {
-    min: new Date('2024-01-01'),
-    max: new Date('2024-12-31'),
+  // Dates are calendar days in local time: build them with new Date(y, monthIndex, d).
+  // new Date('2024-01-01') is midnight UTC, which is Dec 31 west of Greenwich.
+  const [startDate, setStartDate] = useShareableState('from').date(new Date(2024, 0, 1), {
+    min: new Date(2024, 0, 1),
+    max: new Date(2024, 11, 31),
   });
 
-  const [endDate, setEndDate] = useShareableState('to').date(new Date('2024-12-31'));
+  const [endDate, setEndDate] = useShareableState('to').date(new Date(2024, 11, 31));
+
+  // <input type="date"> speaks yyyy-MM-dd; convert with local components, not toISOString()
+  const toInput = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  // no offset => local midnight; a cleared input ("") keeps the current value
+  const fromInput = (s: string, current: Date) => (s ? new Date(`${s}T00:00`) : current);
 
   return (
     <div>
       <input
         type="date"
-        value={startDate.toISOString().slice(0, 10)}
-        onChange={(e) => setStartDate(new Date(e.target.value))}
+        value={toInput(startDate)}
+        onChange={(e) => setStartDate(fromInput(e.target.value, startDate))}
       />
       <input
         type="date"
-        value={endDate.toISOString().slice(0, 10)}
-        onChange={(e) => setEndDate(new Date(e.target.value))}
+        value={toInput(endDate)}
+        onChange={(e) => setEndDate(fromInput(e.target.value, endDate))}
       />
 
       {/* URL: ?from=2024-06-01&to=2024-06-30 */}
@@ -438,13 +446,13 @@ const [enabled, setEnabled] = useShareableState('enabled').boolean().optional();
 #### `date(defaultValue, options?)` - Non-nullable
 
 ```tsx
-const [birthday, setBirthday] = useShareableState('birthday').date(new Date('1990-01-01'), {
-  min: new Date('1900-01-01'),
+const [birthday, setBirthday] = useShareableState('birthday').date(new Date(1990, 0, 1), {
+  min: new Date(1900, 0, 1),
   max: new Date(),
   action: 'replace',
 });
 // birthday: Date (never null)
-// Format: YYYY-MM-DD (UTC)
+// Format: YYYY-MM-DD, the local calendar day (parsed back as local midnight)
 ```
 
 #### `date().optional(defaultValue?, options?)` - Nullable
@@ -480,7 +488,7 @@ const [theme, setTheme] = useShareableState('theme')
 const [settings, setSettings] = useShareableState('settings').json<Settings>(
   { theme: 'light', lang: 'en' },
   {
-    validate: (obj): obj is Settings => typeof obj === 'object' && 'theme' in obj,
+    validate: (obj): obj is Settings => typeof obj === 'object' && obj !== null && 'theme' in obj,
     omitEmpty: (obj) => Object.keys(obj).length === 0,
     stringify: (obj) => JSON.stringify(obj, null, 0),
     parse: (str) => JSON.parse(str),
